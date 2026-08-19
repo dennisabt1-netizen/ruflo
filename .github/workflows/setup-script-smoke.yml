@@ -1,0 +1,158 @@
+# Smoke test for scripts/setup.sh — the automated Ruflo setup installer.
+#
+# Asserts that the one-shot setup script still produces a working install
+# across supported Node majors. The script is the documented entry point in
+# docs/SETUP.md, so a silent regression here breaks first-run experience for
+# every new user.
+#
+# What is verified:
+#   1. bash syntax (`bash -n`) and shellcheck lint
+#   2. hard-fail on Node < 20 (preflight guard must not be bypassed)
+#   3. full run with SKIP_MCP=1 → scaffold, daemon workers, exit code 0
+#   4. idempotency — a second run must not fail or destroy the scaffold
+#
+# SKIP_MCP=1 is required: GitHub runners have no Claude Code CLI, so the MCP
+# registration phase has nothing to register against.
+name: setup-script-smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/setup.sh'
+      - 'docs/SETUP.md'
+      - '.github/workflows/setup-script-smoke.yml'
+  pull_request:
+    paths:
+      - 'scripts/setup.sh'
+      - 'docs/SETUP.md'
+      - '.github/workflows/setup-script-smoke.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: setup-script-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: lint (syntax + shellcheck)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: bash syntax check
+        run: bash -n scripts/setup.sh
+
+      - name: executable bit is set
+        run: |
+          test -x scripts/setup.sh \
+            || { echo "::error file=scripts/setup.sh::missing executable bit (expected mode 100755)"; exit 1; }
+
+      - name: shellcheck
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          shellcheck -S warning scripts/setup.sh
+
+  preflight-guard:
+    name: preflight rejects Node < 20
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # The guard must fire BEFORE any mutation. A pass here would mean the
+      # script happily installs on an unsupported runtime.
+      - name: expect non-zero exit
+        run: |
+          set +e
+          out="$(./scripts/setup.sh "$RUNNER_TEMP/guard" 2>&1)"; rc=$?
+          set -e
+          echo "$out"
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::setup.sh succeeded on Node 18 — preflight guard is broken"
+            exit 1
+          fi
+          echo "$out" | grep -q "zu alt" \
+            || { echo "::error::exited non-zero but not via the Node version guard"; exit 1; }
+          echo "preflight guard fired as expected (exit $rc)"
+
+  install:
+    name: full run (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # Keeps `npm install -g` out of /usr/local so no sudo is needed.
+      - name: user-local npm prefix
+        run: |
+          npm config set prefix "$HOME/.npm-global"
+          echo "$HOME/.npm-global/bin" >> "$GITHUB_PATH"
+
+      - name: run setup.sh
+        env:
+          SKIP_MCP: '1'
+        run: ./scripts/setup.sh "$RUNNER_TEMP/proj"
+
+      - name: assert scaffold
+        run: |
+          cd "$RUNNER_TEMP/proj"
+          rc=0
+          for p in CLAUDE.md .mcp.json .claude .claude-flow .claude/settings.json; do
+            if [ -e "$p" ]; then
+              echo "  ok   $p"
+            else
+              echo "::error::missing scaffold entry: $p"; rc=1
+            fi
+          done
+          exit "$rc"
+
+      # `ruflo status` misreports STOPPED, so the daemon check must use
+      # `ruflo daemon status` — same rule the script itself follows.
+      - name: assert daemon workers
+        run: |
+          cd "$RUNNER_TEMP/proj"
+          ruflo daemon status | tee /tmp/daemon.txt || true
+          n="$(grep -cE '\|[[:space:]]*(idle|running)[[:space:]]*\|' /tmp/daemon.txt || true)"
+          echo "workers detected: ${n:-0}"
+          [ "${n:-0}" -gt 0 ] \
+            || { echo "::error::no active daemon workers after setup"; exit 1; }
+
+      - name: idempotency — second run must succeed
+        env:
+          SKIP_MCP: '1'
+          SKIP_INSTALL: '1'
+        run: |
+          ./scripts/setup.sh "$RUNNER_TEMP/proj"
+          test -f "$RUNNER_TEMP/proj/CLAUDE.md" \
+            || { echo "::error::second run destroyed the scaffold"; exit 1; }
+
+      - name: stop daemon
+        if: always()
+        run: |
+          cd "$RUNNER_TEMP/proj" && ruflo daemon stop || true
+
+      - name: upload setup log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ruflo-setup-log-node${{ matrix.node }}
+          path: ${{ runner.temp }}/proj/.ruflo-setup.log
+          if-no-files-found: ignore

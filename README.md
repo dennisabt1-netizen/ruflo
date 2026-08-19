@@ -50,7 +50,7 @@ User --> Ruflo (CLI/MCP) --> Router --> Swarm --> Agents --> Memory --> LLM Prov
 
 ## Quick Start
 
-There are **two different install paths** with very different surface areas. Pick based on what you need (#1744):
+There are **three install paths** with very different surface areas. Pick based on what you need (#1744):
 
 | | **Claude Code Plugin** | **CLI install (`npx ruflo init`)** |
 |---|---|---|
@@ -59,6 +59,8 @@ There are **two different install paths** with very different surface areas. Pic
 | MCP server registered | Only if `ruflo-core` is installed (it ships its own `.mcp.json`) — most other plugins don't | Yes |
 | Hooks installed | No | Yes |
 | Best for | Try a single plugin's commands without committing to the full install | Production use — everything works as documented |
+
+Prefer not to run the CLI steps by hand? **Path C** below scripts the entire CLI install, starts the runtime, registers MCP, and verifies the result in one command.
 
 ### Path A — Claude Code Plugins (lite, slash commands only)
 
@@ -184,12 +186,33 @@ npm install -g ruflo@latest
 
 > 💡 **Windows users:** the `curl ... | bash` form needs a POSIX shell (Git-Bash, WSL, MSYS). The `npx ruflo@latest init wizard` line works natively in PowerShell and cmd. If you hit an `'bash' is not recognized` error, use the `npx` line instead — both end up running the same init flow.
 
+### Path C — Automated setup (install + init + daemon + MCP + verify)
+
+One command does the whole CLI track end to end and health-checks the result:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dennisabt1-netizen/ruflo/main/scripts/setup.sh | bash -s -- ~/projects/myapp
+```
+
+It is idempotent (re-running is safe), fails fast on Node < 20, and works around three
+install pitfalls that otherwise cost hours — including the `npx`-based MCP registration
+that never connects. Options, troubleshooting, and uninstall: **[docs/SETUP.md](docs/SETUP.md)**.
+
 ### MCP Server
 
 ```bash
-# Add Ruflo as an MCP server in Claude Code
-claude mcp add claude-flow -- npx ruflo@latest mcp start
+# Add Ruflo as an MCP server in Claude Code — use the global binary, not npx
+npm install -g ruflo@latest
+claude mcp add claude-flow -- "$(command -v ruflo)" mcp start
+claude mcp list   # must report: claude-flow ... ✓ Connected
 ```
+
+> ⚠️ Registering `npx ruflo@latest mcp start` as the MCP command leaves the server stuck at
+> **✗ Failed to connect** — every start triggers a registry lookup plus download, which runs
+> past Claude Code's health-check timeout. Point at the installed binary instead.
+>
+> Removing a registration requires an explicit scope: `claude mcp remove claude-flow -s local`.
+> Without `-s`, the command aborts with `already exists` and the broken entry survives.
 
 ---
 
