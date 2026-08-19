@@ -34,7 +34,7 @@ jobs:
           fi
 
       - name: Checkout immutable release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ inputs.tag }}
           fetch-depth: 1
@@ -53,7 +53,7 @@ jobs:
           version: 8
 
       - name: Setup Node.js and npm authentication
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 20
           registry-url: https://registry.npmjs.org

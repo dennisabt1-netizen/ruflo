@@ -29,8 +29,8 @@ jobs:
     name: Static-source security lock
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: ADR-166 §6 #9 — anti-regression lock (both bridges)
@@ -40,8 +40,8 @@ jobs:
     name: Runtime behavior — 401 + terminal gate + fail-closed
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: Install both bridges
@@ -55,7 +55,7 @@ jobs:
     name: Compose default binds loopback + Mongo has auth
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Assert docker-compose binds ONLY to 127.0.0.1
         run: |
           set -euo pipefail
@@ -84,7 +84,7 @@ jobs:
     name: plugin-agent-federation bindHost default
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Assert bindHost defaults to 127.0.0.1
         run: |
           set -euo pipefail

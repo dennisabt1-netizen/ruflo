@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Rule 1 — midstream-aware-loader must not static-import agentic-flow/transport/loader
         # Scoped to the file the #2578 fix touched. midstream-aware-loader.ts
