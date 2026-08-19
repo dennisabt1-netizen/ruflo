@@ -40,7 +40,7 @@ jobs:
   lint:
     name: lint (syntax + shellcheck)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
 
@@ -52,10 +52,20 @@ jobs:
           test -x scripts/setup.sh \
             || { echo "::error file=scripts/setup.sh::missing executable bit (expected mode 100755)"; exit 1; }
 
+      # ShellCheck ships with the GitHub-hosted Ubuntu image. Prefer it over
+      # `apt-get install`, which pushed this job past its 5m wall when the
+      # mirrors were slow (run 32271412981). Fall back to the upstream release
+      # tarball rather than apt, so the job never depends on mirror latency.
       - name: shellcheck
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq shellcheck
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            echo "shellcheck not preinstalled — fetching upstream release"
+            curl -fsSL --retry 3 \
+              https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz \
+              | tar -xJ
+            export PATH="$PWD/shellcheck-v0.10.0:$PATH"
+          fi
+          shellcheck --version
           shellcheck -S warning scripts/setup.sh
 
   preflight-guard:
