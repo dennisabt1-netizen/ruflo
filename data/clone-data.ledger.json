@@ -1163,8 +1163,69 @@
         "agentdb": 3399199,
         "agentic-flow": 2065664
       }
+    },
+    {
+      "id": "2026-08-28T21:31:23.305Z-567473e1",
+      "captured_at": "2026-08-28T21:31:23.305Z",
+      "vector": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "totals": {
+        "clones": 0,
+        "uniques": 0
+      },
+      "repos": {
+        "ruvnet/ruflo": {
+          "count": 0,
+          "uniques": 0,
+          "days": [],
+          "error": "fetch-failed"
+        },
+        "ruvnet/agentdb": {
+          "count": 0,
+          "uniques": 0,
+          "days": [],
+          "error": "fetch-failed"
+        },
+        "ruvnet/agentic-flow": {
+          "count": 0,
+          "uniques": 0,
+          "days": [],
+          "error": "fetch-failed"
+        },
+        "ruvnet/ruvector": {
+          "count": 0,
+          "uniques": 0,
+          "days": [],
+          "error": "fetch-failed"
+        },
+        "ruvnet/ruv-FANN": {
+          "count": 0,
+          "uniques": 0,
+          "days": [],
+          "error": "fetch-failed"
+        }
+      },
+      "npm_headline_total": 10469271,
+      "npm": {
+        "claude-flow": 985183,
+        "ruflo": 1177287,
+        "@claude-flow/cli": 1473078,
+        "@claude-flow/memory": 1133527,
+        "agentdb": 3536885,
+        "agentic-flow": 2163311
+      }
     }
   ],
-  "updated_at": "2026-08-19T15:40:43.919Z",
-  "snapshot_count": 13
+  "updated_at": "2026-08-28T21:31:23.305Z",
+  "snapshot_count": 14
 }
